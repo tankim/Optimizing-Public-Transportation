@@ -57,23 +57,23 @@ class Line:
     def process_message(self, message):
         """Given a kafka message, extract data"""
         # TODO: Based on the message topic, call the appropriate handler.
-        if True: # Set the conditional correctly to the stations Faust Table
+        if message.topic() == "org.chicago.cta.stations": # Set the conditional correctly to the stations Faust Table
+            logger.debug("received station topic")
             try:
-                value = json.loads(message.value())
-                self._handle_station(value)
+                msg = json.loads(message.value())
+                self._handle_station(msg)
             except Exception as e:
-                logger.fatal("bad station? %s, %s", value, e)
-        elif True: # Set the conditional to the arrival topic
+                logger.debug("process_message exception => %s, %s", msg, e)
+        elif message.topic().startswith("org.chicago.cta.station."): # Set the conditional to the arrival topic
+            logger.debug("arrival")
             self._handle_arrival(message)
-        elif True: # Set the conditional to the KSQL Turnstile Summary Topic
+        elif message.topic() == "TURNSTILE_SUMMARY": # Set the conditional to the KSQL Turnstile Summary Topic
+            logger.debug("rTURNSTILE_SUMMARY")
             json_data = json.loads(message.value())
             station_id = json_data.get("STATION_ID")
-            station = self.stations.get(station_id)
-            if station is None:
-                logger.debug("unable to handle message due to missing station")
+            if self.stations.get(station_id) is None:
+                logger.debug(f"station_id={station_id}")
                 return
-            station.process_message(json_data)
+            self.stations.get(station_id).process_message(json_data)
         else:
-            logger.debug(
-                "unable to find handler for message from topic %s", message.topic
-            )
+            logger.debug("no available topic: %s", message.topic)
